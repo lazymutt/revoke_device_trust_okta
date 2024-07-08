@@ -148,7 +148,7 @@ def main():
         epilog='https://github.com/lazymutt/revoke_device_trust_okta is forked from https://github.com/isaiahtech/revoke_device_trust_okta')
 
     parser.add_argument('-t', '--target_uuid', action='store', default=None, help='UUID of machine you are targeting, otherwise the UUID of the machine the script is running on.')
-    parser.add_argument('-d', '--delete_certs', action="store_true", default=False, help='Delete unbound certificates.')
+    parser.add_argument('-d', '--delete_certs', action="store_true", default=False, help='Delete unbound certificates, otherwise list only.')
 
     args = parser.parse_args()
 
