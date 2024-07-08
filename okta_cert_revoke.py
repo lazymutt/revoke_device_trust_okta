@@ -8,23 +8,30 @@ revoke_okta_unbound_certs_local.
 # Copyright 2018-present, Okta Inc.
 #
 # Script to revoke client certificates per device #
-# https://help.okta.com/en/prod/Content/Topics/Miscellaneous/Third-party%20Licenses/ 3rd%20Party%20Notices_Okta%20Password%20Sync%20Setup.pdf
+# https://help.okta.com/en/prod/Content/Topics/Miscellaneous/Third-party%20Licenses/3rd%20Party%20Notices_Okta%20Password%20Sync%20Setup.pdf
 #
 # APIs used in this process are internal APIs and they are subject to changes without prior notice. #
 
-
+#
+# Notes from initial communication about isaiahtech's script:
+#
 # Hello Todd,
 #
-# ████████ from Okta here, hope everything is well. Apologies for the delay, last week I had to research this further to better understand the situation here and see what solutions are available for the issue and with yesterday being Juneteenth, I wasn't able to reach back sooner.
+# ████████ from Okta here, hope everything is well. Apologies for the delay, last week I
+# had to research this further to better understand the situation here and see what
+# solutions are available for the issue and with yesterday being Juneteenth, I wasn't able
+# to reach back sooner.
 #
-# It appears we do not have public facing documentation regarding this issue. I have reached out internally and the internal team has provided a python script to reset the limit you are having issues with. Please see below:
+# It appears we do not have public facing documentation regarding this issue. I have
+# reached out internally and the internal team has provided a python script to reset the
+# limit you are having issues with. Please see below:
 #
 # https://github.com/isaiahtech/revoke_device_trust_okta/blob/main/okta_cert_revoke.py
 #
 # Please make sure that you replace the variable correct:
-# SERVER = 'https://DOMAIN.okta.com'  # <----- Put your Okta tenant domain here
-# okta_org_api_token = 'SSWS APIKEY_HERE'  # <----- Put your Admin API Key here !!! DO NOT DELETE SSWS !!!
-# MAC_UDID = 'MAC_UDID_HERE'          # <----- Put your MacID here
+# SERVER = 'https://DOMAIN.okta.com'        # <----- Put your Okta tenant domain here
+# okta_org_api_token = 'SSWS APIKEY_HERE'   # <----- Put your Admin API Key here !!! DO NOT DELETE SSWS !!!
+# MAC_UDID = 'MAC_UDID_HERE'                # <----- Put your MacID here
 #
 # The following information must be gathered prior to executing script:
 #
@@ -40,6 +47,9 @@ revoke_okta_unbound_certs_local.
 # Technical Support Engineer
 # Okta Global Customer Care
 
+#
+# Previous version output:
+#
 # ╰─ ./okta_local_revoke_unbound_EC.py
 # Getting certs for device: ████████-████-████-████-████████████
 # Response: b'[{"kid":"███████████████████████████████████████","status":"VALID"},{"kid":"█████████████████████████████████████████","status":"VALID"},{"kid":"████████████████████████████████████████","status":"VALID"},{"kid":"████████████████████████████████████████","status":"VALID"},{"kid":"████████████████████████████████████████","status":"VALID"}]'
@@ -67,9 +77,6 @@ import sys
 import requests
 from local_credentials import okta_root, okta_org_api_token
 
-# okta_root = 'emersoncollective'
-# okta_org_api_token = '████████-█████████-███████████████████████'
-
 
 def fetch_local_uuid():
     """
@@ -90,22 +97,26 @@ def get_and_revoke_certs(args, working_uuid):
     print(f'Getting certs for device: {working_uuid}')
 
     okta_headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': f'SSWS {okta_org_api_token}'}
-    response = requests.get(url=url, headers=okta_headers, timeout=5)
+    response = requests.get(url=url, headers=okta_headers, timeout=15)
     response_json = response.json()
 
+    if response.status_code != 200:
+        print(f'Error requesting certs, exiting. {response.status_code}')
+        sys.exit(0)
+
     if not response_json:
-        print('No certificates found')
+        print('No certificates found, exiting.')
         sys.exit(0)
     else:
         print(f"Found {len(response_json)} cert(s).")
 
     for okta_cert in response_json:
-
+        print(okta_cert)
         if 'kid' not in okta_cert.keys():
             print("Error in certs")
             sys.exit(1)
         print(okta_cert['status'], okta_cert['kid'])
-        if not args.list_certs:
+        if args.delete_certs:
             revoke_this_cert(working_uuid, okta_cert['kid'])
         print('Finished.')
 
@@ -118,7 +129,7 @@ def revoke_this_cert(working_uuid, cert_id):
     print('Revoking certificate: ' + str(cert_id))
 
     okta_headers = {'Accept': 'application/json', 'Authorization': f'SSWS {okta_org_api_token}'}
-    response = requests.post(url=url, headers=okta_headers, timeout=5)
+    response = requests.post(url=url, headers=okta_headers, timeout=15)
 
     if response.status_code != 200:
         print(f"Error deleting {cert_id}! Code:{response.status_code}")
@@ -137,7 +148,7 @@ def main():
         epilog='https://github.com/lazymutt/revoke_device_trust_okta is forked from https://github.com/isaiahtech/revoke_device_trust_okta')
 
     parser.add_argument('-t', '--target_uuid', action='store', default=None, help='UUID of machine you are targeting, otherwise the UUID of the machine the script is running on.')
-    parser.add_argument('-l', '--list_certs', action="store_true", default=False, help='List unbound certificates.')
+    parser.add_argument('-d', '--delete_certs', action="store_true", default=False, help='Delete unbound certificates.')
 
     args = parser.parse_args()
 
